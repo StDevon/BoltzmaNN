@@ -73,24 +73,23 @@ class FCN(torch.nn.Module):
 
 def compute_gradients(f, x, q):
     """Computes gradient of NN wrt two variables. Assumes NN output is scalar.
-    Ensures that gradients from previous computations is not included by detaching them first
 
-    Returns
-    tuple torch.tensor
+    Returns:
+    tuple of torch.Tensor: Gradients with respect to x and q.
     """
-    x = x.clone().detach().requires_grad_(True)  #
-    q = q.clone().detach().requires_grad_(True)
+    # Ensure x and q require gradients
+    x = x.clone().requires_grad_(True)
+    q = q.clone().requires_grad_(True)
 
+    # Forward pass
     y = f(x, q)
-    grad_outputs = torch.ones_like(y)
 
     # Compute gradients
     gradients = torch.autograd.grad(
         outputs=y,
         inputs=(x, q),
-        grad_outputs=grad_outputs,
-        # create_graph=True, #Boltzmann equation does not involve higher order derivatives so graph is not required, using grad for possible Fokker-Planck
-        # retain_graph=True,
+        grad_outputs=torch.ones_like(y),
+        create_graph=True,  # Important to set this to True
     )
     return gradients
 
