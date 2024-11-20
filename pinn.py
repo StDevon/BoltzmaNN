@@ -116,3 +116,15 @@ def uniform_sampler(batch_size, x_min, x_max):
     samples = x_min + (x_max - x_min) * rand_samples
 
     return samples
+
+
+def MS_loss_function(residual):
+    return torch.mean(residual**2)
+
+
+def smooth_max(inputs, dim, alpha=10):
+    return (torch.logsumexp(alpha * inputs, dim=dim)) / alpha
+
+
+def smooth_abs(x, epsilon=1e-20):
+    return torch.sqrt(x**2 + epsilon)
