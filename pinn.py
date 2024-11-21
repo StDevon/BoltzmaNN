@@ -44,7 +44,7 @@ class FCN(torch.nn.Module):
         input_dim,
         output_dim,
         hidden=(20, 20, 20),
-        activations=torch.nn.Tanh(),  # check other activation functions, simgoid might be better as it is more 0 centered and Y~0??
+        activations=torch.nn.Tanh(),
         normalize=False,
         x_max=None,
         x_min=None,
@@ -78,8 +78,8 @@ def compute_gradients(f, x, q):
     tuple of torch.Tensor: Gradients with respect to x and q.
     """
     # Ensure x and q require gradients
-    x = x.clone().requires_grad_(True)
-    q = q.clone().requires_grad_(True)
+    # x = x.clone().requires_grad_(True)
+    # q = q.clone().requires_grad_(True)
 
     # Forward pass
     y = f(x, q)
@@ -89,7 +89,7 @@ def compute_gradients(f, x, q):
         outputs=y,
         inputs=(x, q),
         grad_outputs=torch.ones_like(y),
-        create_graph=True,  # Important to set this to True
+        create_graph=True,
     )
     return gradients
 
@@ -122,7 +122,7 @@ def MS_loss_function(residual):
     return torch.mean(residual**2)
 
 
-def smooth_max(inputs, dim, alpha=10):
+def smooth_max(inputs, dim, alpha=1000):
     return (torch.logsumexp(alpha * inputs, dim=dim)) / alpha
 
 
