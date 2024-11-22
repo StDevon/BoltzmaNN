@@ -15,8 +15,24 @@ def _construct_FC_layers(hidden, input_dim, output_dim, activations):
     return layers
 
 
-def normalize(x, x_min, x_max):
-    """scales [x_min, x_max] to [-1, 1] range"""
+def normalize(
+    x: torch.Tensor, x_min: torch.Tensor, x_max: torch.Tensor
+) -> torch.Tensor:
+    """scales [x_min, x_max] to [-1, 1] range.
+        Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor to be normalized.
+    x_min : torch.Tensor
+        Minimum value(s) for normalization.
+    x_max : torch.Tensor
+        Maximum value(s) for normalization.
+
+    Returns
+    -------
+    torch.Tensor
+        Normalized tensor.
+    """
     return 2.0 * (x - x_min) / (x_max - x_min) - 1
 
 
@@ -41,10 +57,10 @@ class FCN(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        input_dim: int,
+        output_dim: int,
         hidden=(20, 20, 20),
-        activations=torch.nn.Tanh(),  # check other activation functions, simgoid might be better as it is more 0 centered and Y~0??
+        activations=torch.nn.Tanh(),
         normalize=False,
         x_max=None,
         x_min=None,
@@ -53,15 +69,19 @@ class FCN(torch.nn.Module):
 
         self.normalize = normalize
         if self.normalize:
+            if x_min is None or x_max is None:
+                raise ValueError(
+                    "x_min and x_max must be provided when normalize is True."
+                )
             self.register_buffer("x_max", torch.tensor(x_max).float())
             self.register_buffer("x_min", torch.tensor(x_min).float())
+
         layers = _construct_FC_layers(
             hidden=hidden,
             input_dim=input_dim,
             output_dim=output_dim,
             activations=activations,
         )
-
         self.sequential = torch.nn.Sequential(*layers)
 
     def forward(self, *x):
@@ -71,15 +91,14 @@ class FCN(torch.nn.Module):
         return self.sequential(x)
 
 
-def compute_gradients(f, x, q):
+def compute_gradients(f, x: torch.Tensor, q: torch.Tensor) -> tuple:
     """Computes gradient of NN wrt two variables. Assumes NN output is scalar.
 
     Returns:
     tuple of torch.Tensor: Gradients with respect to x and q.
     """
-    # Ensure x and q require gradients
-    x = x.clone().requires_grad_(True)
-    q = q.clone().requires_grad_(True)
+    x.requires_grad_(True)
+    q.requires_grad_(True)
 
     # Forward pass
     y = f(x, q)
@@ -89,25 +108,31 @@ def compute_gradients(f, x, q):
         outputs=y,
         inputs=(x, q),
         grad_outputs=torch.ones_like(y),
-        create_graph=True,  # Important to set this to True
+        create_graph=True,
     )
     return gradients
 
 
-def uniform_sampler(batch_size, x_min, x_max):
+def uniform_sampler(batch_size: int, x_min, x_max) -> torch.Tensor:
     """
-    Samples uniformly from the given ranges for each dimension.
+    Generates uniformly distributed samples within given ranges for each dimension.
 
-    Parameters:
-    - batch_size (int): Number of samples to generate.
-    - x_min (list or torch.Tensor): Lower bounds for each dimension.
-    - x_max (list or torch.Tensor): Upper bounds for each dimension.
+        Parameters
+        ----------
+        batch_size : int
+            Number of samples to generate.
+        x_min : list, tuple, or torch.Tensor
+            Lower bounds for each dimension.
+        x_max : list, tuple, or torch.Tensor
+            Upper bounds for each dimension.
 
-    Returns:
-    - x (torch.Tensor): Tensor of shape (batch_size, len(x_min)) containing the samples.
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(batch_size, num_dimensions)` containing the uniformly sampled data.
     """
-    x_min = torch.tensor(x_min).float()
-    x_max = torch.tensor(x_max).float()
+    x_min = torch.tensor(x_min)
+    x_max = torch.tensor(x_max)
 
     # Generate uniform samples in the range [0, 1]
     rand_samples = torch.rand(batch_size, len(x_min))
@@ -116,3 +141,15 @@ def uniform_sampler(batch_size, x_min, x_max):
     samples = x_min + (x_max - x_min) * rand_samples
 
     return samples
+
+
+def MS_loss_function(residual):
+    return torch.mean(residual**2)
+
+
+def smooth_max(inputs, dim, alpha=1000):
+    return (torch.logsumexp(alpha * inputs, dim=dim)) / alpha
+
+
+def smooth_abs(x, epsilon=1e-20):
+    return torch.sqrt(x**2 + epsilon)
