@@ -16,7 +16,6 @@ fa = 2e8  # GeV
 # corresponds to the freeze out
 
 # Ratio of the two masses
-mu = m2 / m1
 massRatio = m2 / m1
 
 # Number of massless particle degrees of freedom

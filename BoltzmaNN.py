@@ -4,12 +4,11 @@ import numpy as np
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import matplotlib.pyplot as plt
 import math
+import pandas as pd
 
 
 from pinn import (
-    compute_gradients,
     uniform_sampler,
-    smooth_max,
     smooth_abs,
     MS_loss_function,
     FCN,
@@ -22,9 +21,8 @@ class BoltzmaNN:
         self,
         x_range: Tuple[float, float],
         q_range: Tuple[float, float],
-        hidden_width,
-        batch_size,
-        num_epochs,
+        hidden_width: int,
+        batch_size: int,
         NumericalFinalDistribution,
         NumericalInitialDistribution,
         q_lin,
@@ -48,7 +46,6 @@ class BoltzmaNN:
         )
 
         # Training parameters
-        self.num_epochs = num_epochs
         self.batch_size = batch_size
         self.collocation_number_plot = collocation_number_plot
         self.plotting_step = 1000
@@ -96,6 +93,7 @@ class BoltzmaNN:
 
     def train(
         self,
+        num_epochs,
         physics_weight,
         positivity_weight,
         bc_weight,
@@ -118,7 +116,7 @@ class BoltzmaNN:
         )
 
         self.model.train().to(self.device)
-        for epoch in range(self.num_epochs):
+        for epoch in range(num_epochs):
             self.optimizer.zero_grad()
             x_grid, q_grid = self.sample_points(self.q0, self.qf, self.x0, self.xf)
 
@@ -139,7 +137,7 @@ class BoltzmaNN:
             )
 
             # Adaptive physics weight for learning IC first
-            current_physics_weight = physics_weight  # * (epoch / self.num_epochs)
+            current_physics_weight = physics_weight  # * (epoch / num_epochs)
             # Compute physics loss
             equation_residual_loss = current_physics_weight * MS_loss_function(
                 BE_residue(self.model, x_grid, q_grid)
@@ -192,7 +190,9 @@ class BoltzmaNN:
             .reshape(-1)
         )
         rmse = np.sqrt(
-            np.mean((NumericalFinalDistribution - predicted_final_distribution) ** 2)
+            np.mean(
+                (self.NumericalFinalDistribution - predicted_final_distribution) ** 2
+            )
         )
         self.MSE_numerical = np.append(self.MSE_numerical, rmse)
         print(f"Epoch {epoch}: MSE wrt numerical = {rmse}")
@@ -284,7 +284,7 @@ class BoltzmaNN:
         plt.legend()
         plt.show()
 
-    def plot_learning_data(self):
+    def plot_learning_data(self, num_epochs):
         Loss_of_q = (
             torch.mean(
                 BE_residue(self.model, self.x_values_fin, self.q_values) ** 2, dim=1
@@ -310,11 +310,11 @@ class BoltzmaNN:
         plt.tight_layout()
         plt.show()
 
-        self.plot_error()
+        self.plot_error(num_epochs)
 
-    def plot_error(self):
+    def plot_error(self, num_epochs):
         plt.plot(
-            np.linspace(0, self.num_epochs, self.MSE_numerical.size),
+            np.linspace(0, num_epochs, self.MSE_numerical.size),
             self.MSE_numerical,
             label="MSE wrt numerical",
         )

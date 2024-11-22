@@ -3,14 +3,7 @@ import numpy as np
 from cubic_spline import TorchCubicSpline
 from parameters import massRatio, g_m1, Msq, m1, mDM, g_x
 
-from pinn import (
-    compute_gradients,
-    uniform_sampler,
-    smooth_max,
-    smooth_abs,
-    MS_loss_function,
-    FCN,
-)
+from pinn import compute_gradients, smooth_max
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
