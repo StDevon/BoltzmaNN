@@ -23,17 +23,20 @@ class BoltzmaNN:
         q_range: Tuple[float, float],
         hidden_width: int,
         batch_size: int,
-        NumericalFinalDistribution,
-        NumericalInitialDistribution,
-        q_lin,
+        NumericalSolution,
+        x_lin: np.ndarray,
+        q_lin: np.ndarray,
         collocation_number_plot=200,
     ):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.x0, self.xf = x_range
         self.q0, self.qf = q_range
-        self.NumericalFinalDistribution = NumericalFinalDistribution
-        self.NumericalInitialDistribution = NumericalInitialDistribution
+        self.NumericalSolution = NumericalSolution
+        self.NumericalFinalDistribution = NumericalSolution[-1, :]
+        self.NumericalInitialDistribution = NumericalSolution[0, :]
         self.q_lin = q_lin
+        self.x_lin = x_lin
+
         # Initialize model, optimizer, scheduler, and other settings
         self.model = FCN(
             input_dim=2,
@@ -182,17 +185,31 @@ class BoltzmaNN:
         return self.MSE_numerical[-1], total_loss
 
     def update_mse_numerical(self, epoch):
+        x_lin_tensor = torch.from_numpy(self.x_lin).float()
+        q_lin_tensor = torch.from_numpy(self.q_lin).float()
+
+        # Corrected variable names in meshgrid function
+        x_grid, q_grid = torch.meshgrid(x_lin_tensor, q_lin_tensor, indexing="ij")
+
+        # Stack and reshape the meshgrid to create a list of (x, q) pairs
+        xq_meshgrid = torch.stack((x_grid, q_grid), dim=-1).reshape(-1, 2)
+
+        # Enable gradient computation
+        xq_meshgrid.requires_grad_(True)
+
+        # Split the meshgrid back into x and q tensors
+        x_lin_grid = xq_meshgrid[:, 0].view(-1, 1).to(self.device)
+        q_lin_grid = xq_meshgrid[:, 1].view(-1, 1).to(self.device)
+
         predicted_final_distribution = (
-            self.model(self.x_values_fin, self.q_values)
-            .cpu()
-            .detach()
-            .numpy()
-            .reshape(-1)
+            self.model(x_lin_grid, q_lin_grid).cpu().detach().numpy().reshape(-1)
         )
+        predicted_final_distribution = predicted_final_distribution.reshape(
+            x_grid.shape
+        )
+
         rmse = np.sqrt(
-            np.mean(
-                (self.NumericalFinalDistribution - predicted_final_distribution) ** 2
-            )
+            np.mean((self.NumericalSolution - predicted_final_distribution) ** 2)
         )
         self.MSE_numerical = np.append(self.MSE_numerical, rmse)
         print(f"Epoch {epoch}: MSE wrt numerical = {rmse}")
