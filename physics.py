@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from cubic_spline import TorchCubicSpline
+from parameters import massRatio, g_m1, Msq, m1, mDM, g_x
 
 from pinn import (
     compute_gradients,
