@@ -23,9 +23,9 @@ class BoltzmaNN:
         q_range: Tuple[float, float],
         hidden_width: int,
         batch_size: int,
-        NumericalSolution,
-        x_lin: np.ndarray,
-        q_lin: np.ndarray,
+        NumericalSolution: list,
+        x_lin_num: np.ndarray,
+        q_lin_num: np.ndarray,
         collocation_number_plot=200,
     ):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -34,8 +34,8 @@ class BoltzmaNN:
         self.NumericalSolution = NumericalSolution
         self.NumericalFinalDistribution = NumericalSolution[-1, :]
         self.NumericalInitialDistribution = NumericalSolution[0, :]
-        self.q_lin = q_lin
-        self.x_lin = x_lin
+        self.q_lin_num = q_lin_num
+        self.x_lin_num = x_lin_num
 
         # Initialize model, optimizer, scheduler, and other settings
         self.model = FCN(
@@ -185,8 +185,8 @@ class BoltzmaNN:
         return self.MSE_numerical[-1], total_loss
 
     def update_mse_numerical(self, epoch):
-        x_lin_tensor = torch.from_numpy(self.x_lin).float()
-        q_lin_tensor = torch.from_numpy(self.q_lin).float()
+        x_lin_tensor = torch.from_numpy(self.x_lin_num).float()
+        q_lin_tensor = torch.from_numpy(self.q_lin_num).float()
 
         # Corrected variable names in meshgrid function
         x_grid, q_grid = torch.meshgrid(x_lin_tensor, q_lin_tensor, indexing="ij")
@@ -220,7 +220,7 @@ class BoltzmaNN:
         self.history_distributions_final.append(predicted_final)
         self.history_distributions_initial.append(predicted_initial)
 
-    def plot_steps(self, q_lin):
+    def plot_steps(self):
         num_plots = len(self.history_distributions_final)
         rows = math.ceil(num_plots / 2)  # number of rows needed
         fig, axes = plt.subplots(
@@ -238,10 +238,13 @@ class BoltzmaNN:
                 self.q_plot_values, predicted_initial, label="PINN initial", color="g"
             )
             ax.plot(
-                q_lin, self.NumericalFinalDistribution, "r--", label="Numerical, final"
+                self.q_lin_num,
+                self.NumericalFinalDistribution,
+                "r--",
+                label="Numerical, final",
             )
             ax.plot(
-                q_lin,
+                self.q_lin_num,
                 self.NumericalInitialDistribution,
                 "g--",
                 label="Numerical, initial",
@@ -281,10 +284,13 @@ class BoltzmaNN:
             )
 
         plt.plot(
-            self.q_lin, self.NumericalFinalDistribution, "r--", label="Numerical, final"
+            self.q_lin_num,
+            self.NumericalFinalDistribution,
+            "r--",
+            label="Numerical, final",
         )
         plt.plot(
-            self.q_lin,
+            self.q_lin_num,
             self.NumericalInitialDistribution,
             "g--",
             label="Numerical, initial",
